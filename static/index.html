@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swimming Points Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #f5f5f7;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            padding: 40px;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1d1d1f;
+            margin-bottom: 32px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #6e6e73;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 10px;
+            font-size: 16px;
+            background: #fff;
+            color: #1d1d1f;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #0071e3;
+            box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+        }
+
+        .row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .row .form-group {
+            flex: 1;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #0071e3;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0077ed;
+        }
+
+        button:active {
+            background: #0066c9;
+        }
+
+        .result {
+            margin-top: 32px;
+            padding: 24px;
+            background: #f5f5f7;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result h2 {
+            text-align: center;
+            color: #1d1d1f;
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .points-display {
+            text-align: center;
+            padding: 24px;
+            background: #fff;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #e5e5e5;
+        }
+
+        .points-display .points-value {
+            font-size: 42px;
+            font-weight: 700;
+            color: #1d1d1f;
+            line-height: 1.2;
+        }
+
+        .points-display .points-label {
+            font-size: 13px;
+            color: #86868b;
+            margin-top: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .rank-display {
+            text-align: center;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .rank-display .rank-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0071e3;
+        }
+
+        .rank-display .rank-label {
+            font-size: 13px;
+            color: #86868b;
+            margin-top: 6px;
+        }
+
+        .rank-display .time-to-norm {
+            font-size: 13px;
+            color: #86868b;
+            margin-top: 10px;
+        }
+
+        .rank-display .time-to-norm.positive {
+            color: #34c759;
+        }
+
+        .rank-display .time-to-norm.negative {
+            color: #ff3b30;
+        }
+
+        .rank-display.no-rank {
+            background: #fafafa;
+        }
+
+        .rank-display.no-rank .rank-value {
+            color: #aeaeb2;
+        }
+
+        .error {
+            background: #fff2f2;
+            border: 1px solid #ffcccb;
+            color: #ff3b30;
+            padding: 14px 16px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 24px;
+            color: #86868b;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 2px solid #e5e5e5;
+            border-top-color: #0071e3;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 32px;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #e5e5e5;
+        }
+
+        .footer .copyright {
+            font-size: 12px;
+            color: #aeaeb2;
+            font-weight: 400;
+        }
+
+        /* === НОВОЕ: Стили для ссылки на API docs === */
+        .footer .api-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #86868b;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer .api-link:hover {
+            color: #0071e3;
+            text-decoration: underline;
+        }
+        /* === КОНЕЦ НОВЫХ СТИЛЕЙ === */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Swimming Points</h1>
+        
+        <form id="calcForm">
+            <div class="row">
+                <div class="form-group">
+                    <label for="pool">Бассейн</label>
+                    <select id="pool" required>
+                        <option value="SCM">25 метров</option>
+                        <option value="LCM">50 метров</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="gender">Пол</label>
+                    <select id="gender" required>
+                        <option value="male">Мужчины</option>
+                        <option value="female">Женщины</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="event">Дистанция</label>
+                <select id="event" required>
+                    <option value="">Загрузка...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="time">Время</label>
+                <input type="text" id="time" placeholder="1:05.42 или 28.50" required>
+            </div>
+
+            <button type="submit">Рассчитать</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Расчёт...</p>
+        </div>
+
+        <div class="error" id="error"></div>
+
+        <div class="result" id="result">
+            <h2>Результат</h2>
+            
+            <div class="points-display">
+                <div class="points-value" id="pointsValue">0</div>
+                <div class="points-label">WA Points</div>
+            </div>
+
+            <div class="rank-display" id="rankDisplay">
+                <div class="rank-value" id="rankValue">-</div>
+                <div class="rank-label">Спортивный разряд</div>
+                <div class="time-to-norm" id="timeToNorm"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <div class="copyright" id="copyright"></div>
+            <!-- === НОВОЕ: Ссылка на API docs === -->
+            <a href="/docs" class="api-link" target="_blank">API Documentation</a>
+            <!-- === КОНЕЦ НОВОЙ ССЫЛКИ === -->
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        const poolSelect = document.getElementById('pool');
+        const eventSelect = document.getElementById('event');
+        const form = document.getElementById('calcForm');
+        const resultDiv = document.getElementById('result');
+        const errorDiv = document.getElementById('error');
+        const loadingDiv = document.getElementById('loading');
+
+        const eventTranslations = {
+            '50m freestyle': '50 м вольный стиль',
+            '100m freestyle': '100 м вольный стиль',
+            '200m freestyle': '200 м вольный стиль',
+            '400m freestyle': '400 м вольный стиль',
+            '800m freestyle': '800 м вольный стиль',
+            '1500m freestyle': '1500 м вольный стиль',
+            '50m backstroke': '50 м на спине',
+            '100m backstroke': '100 м на спине',
+            '200m backstroke': '200 м на спине',
+            '50m breaststroke': '50 м брасс',
+            '100m breaststroke': '100 м брасс',
+            '200m breaststroke': '200 м брасс',
+            '50m butterfly': '50 м баттерфляй',
+            '100m butterfly': '100 м баттерфляй',
+            '200m butterfly': '200 м баттерфляй',
+            '100m medley': '100 м комплексное плавание',
+            '200m medley': '200 м комплексное плавание',
+            '400m medley': '400 м комплексное плавание'
+        };
+
+        function translateEvent(eventName) {
+            const key = eventName.toLowerCase().trim();
+            return eventTranslations[key] || eventName;
+        }
+
+        function isRelay(eventName) {
+            const name = eventName.toLowerCase();
+            return name.includes('relay') || name.includes('4x') || name.includes('эстафета');
+        }
+
+        async function loadEvents() {
+            const pool = poolSelect.value;
+            eventSelect.innerHTML = '<option value="">Загрузка...</option>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/events?pool=${pool}`);
+                const data = await response.json();
+                
+                eventSelect.innerHTML = '<option value="">Выберите дистанцию</option>';
+                data.events.forEach(event => {
+                    if (isRelay(event)) {
+                        return;
+                    }
+                    
+                    const option = document.createElement('option');
+                    option.value = event;
+                    option.textContent = translateEvent(event);
+                    eventSelect.appendChild(option);
+                });
+            } catch (error) {
+                eventSelect.innerHTML = '<option value="">Ошибка загрузки</option>';
+                console.error('Error loading events:', error);
+            }
+        }
+
+        poolSelect.addEventListener('change', loadEvents);
+        loadEvents();
+
+        document.getElementById('copyright').textContent = `Copyright © ${new Date().getFullYear()} Владимир Юсупов`;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const pool = poolSelect.value;
+            const gender = document.getElementById('gender').value;
+            const event = eventSelect.value;
+            const time = document.getElementById('time').value;
+
+            if (!event) {
+                showError('Выберите дистанцию');
+                return;
+            }
+
+            loadingDiv.classList.add('show');
+            resultDiv.classList.remove('show');
+            errorDiv.classList.remove('show');
+
+            try {
+                const params = new URLSearchParams({ time, event, pool, gender });
+                const response = await fetch(`${API_BASE}/calculate?${params}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Ошибка расчёта');
+                }
+
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loadingDiv.classList.remove('show');
+            }
+        });
+
+        function displayResult(data) {
+            document.getElementById('pointsValue').textContent = data.points.toLocaleString();
+
+            const rankDisplay = document.getElementById('rankDisplay');
+            const rankValue = document.getElementById('rankValue');
+            const timeToNorm = document.getElementById('timeToNorm');
+            
+            rankValue.textContent = data.rank || '—';
+            
+            if (data.rank && data.rank !== 'Без разряда' && data.rank !== 'Нет норматива') {
+                rankDisplay.classList.remove('no-rank');
+                
+                if (data.time_to_norm !== null && data.time_to_norm !== undefined) {
+                    if (data.time_to_norm > 0) {
+                        timeToNorm.textContent = `+${data.time_to_norm} сек`;
+                        timeToNorm.className = 'time-to-norm positive';
+                    } else if (data.time_to_norm < 0) {
+                        timeToNorm.textContent = `${data.time_to_norm} сек`;
+                        timeToNorm.className = 'time-to-norm negative';
+                    } else {
+                        timeToNorm.textContent = 'Точно в норматив';
+                        timeToNorm.className = 'time-to-norm positive';
+                    }
+                } else {
+                    timeToNorm.textContent = '';
+                }
+            } else {
+                rankDisplay.classList.add('no-rank');
+                timeToNorm.textContent = 'Норматив не выполнен';
+                timeToNorm.className = 'time-to-norm negative';
+            }
+
+            resultDiv.classList.add('show');
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+        }
+    </script>
+</body>
+</html>
