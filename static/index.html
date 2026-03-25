@@ -270,6 +270,18 @@
             color: #0071e3;
             text-decoration: underline;
         }
+
+        .rank-display .next-rank {
+            font-size: 12px;
+            color: #0071e3;
+            margin-top: 6px;
+            padding-top: 8px;
+            border-top: 1px dashed #e5e5e5;
+        }
+
+        .rank-display .next-rank.unavailable {
+            color: #aeaeb2;
+        }
     </style>
 </head>
 <body>
@@ -328,6 +340,7 @@
                 <div class="rank-value" id="rankValue">-</div>
                 <div class="rank-label">Спортивный разряд</div>
                 <div class="time-to-norm" id="timeToNorm"></div>
+                <div class="next-rank" id="nextRank"></div>
             </div>
         </div>
 
@@ -345,7 +358,8 @@
         const resultDiv = document.getElementById('result');
         const errorDiv = document.getElementById('error');
         const loadingDiv = document.getElementById('loading');
-
+    
+        // Словарь перевода дистанций на русский язык
         const eventTranslations = {
             '50m freestyle': '50 м вольный стиль',
             '100m freestyle': '100 м вольный стиль',
@@ -366,17 +380,20 @@
             '200m medley': '200 м комплексное плавание',
             '400m medley': '400 м комплексное плавание'
         };
-
+    
+        // Функция перевода названия дистанции
         function translateEvent(eventName) {
             const key = eventName.toLowerCase().trim();
             return eventTranslations[key] || eventName;
         }
-
+    
+        // Функция проверки на эстафету (для фильтрации)
         function isRelay(eventName) {
             const name = eventName.toLowerCase();
             return name.includes('relay') || name.includes('4x') || name.includes('эстафета');
         }
-
+    
+        // Загрузка списка дистанций при изменении бассейна
         async function loadEvents() {
             const pool = poolSelect.value;
             eventSelect.innerHTML = '<option value="">Загрузка...</option>';
@@ -387,9 +404,8 @@
                 
                 eventSelect.innerHTML = '<option value="">Выберите дистанцию</option>';
                 data.events.forEach(event => {
-                    if (isRelay(event)) {
-                        return;
-                    }
+                    // Пропускаем эстафеты
+                    if (isRelay(event)) return;
                     
                     const option = document.createElement('option');
                     option.value = event;
@@ -401,12 +417,17 @@
                 console.error('Error loading events:', error);
             }
         }
-
+    
+        // Обработчик изменения бассейна
         poolSelect.addEventListener('change', loadEvents);
+        
+        // Первоначальная загрузка дистанций
         loadEvents();
-
-        document.getElementById('copyright').textContent = `Copyright © ${new Date().getFullYear()} Владимир Юсупов`;
-
+    
+        // Установка копирайта с текущим годом
+        document.getElementById('copyright').textContent = `© ${new Date().getFullYear()} Владимир Юсупов`;
+    
+        // Обработка отправки формы
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -414,16 +435,18 @@
             const gender = document.getElementById('gender').value;
             const event = eventSelect.value;
             const time = document.getElementById('time').value;
-
+    
+            // Проверка выбора дистанции
             if (!event) {
                 showError('Выберите дистанцию');
                 return;
             }
-
+    
+            // Показываем индикатор загрузки
             loadingDiv.classList.add('show');
             resultDiv.classList.remove('show');
             errorDiv.classList.remove('show');
-
+    
             try {
                 const params = new URLSearchParams({ time, event, pool, gender });
                 const response = await fetch(`${API_BASE}/calculate?${params}`);
@@ -432,7 +455,7 @@
                     const errorData = await response.json();
                     throw new Error(errorData.detail || 'Ошибка расчёта');
                 }
-
+    
                 const data = await response.json();
                 displayResult(data);
             } catch (error) {
@@ -441,16 +464,22 @@
                 loadingDiv.classList.remove('show');
             }
         });
-
+    
+        // Отображение результатов расчёта
         function displayResult(data) {
+            // Отображение очков
             document.getElementById('pointsValue').textContent = data.points.toLocaleString();
-
+    
+            // Элементы блока разряда
             const rankDisplay = document.getElementById('rankDisplay');
             const rankValue = document.getElementById('rankValue');
             const timeToNorm = document.getElementById('timeToNorm');
+            const nextRankEl = document.getElementById('nextRank');
             
+            // Установка текущего разряда
             rankValue.textContent = data.rank || '—';
             
+            // Стилизация блока разряда
             if (data.rank && data.rank !== 'Без разряда' && data.rank !== 'Нет норматива') {
                 rankDisplay.classList.remove('no-rank');
                 
@@ -473,10 +502,38 @@
                 timeToNorm.textContent = 'Норматив не выполнен';
                 timeToNorm.className = 'time-to-norm negative';
             }
-
+    
+            // === Обработка следующего разряда ===
+            if (data.next_rank && data.seconds_to_next !== null && data.seconds_to_next !== undefined) {
+                if (data.seconds_to_next > 0) {
+                    // Нужно улучшить время
+                    nextRankEl.textContent = `⬆️ До ${data.next_rank}: ${data.seconds_to_next} сек`;
+                    nextRankEl.className = 'next-rank';
+                } else if (data.seconds_to_next < 0) {
+                    // Уже достигнут следующий (редкий случай)
+                    nextRankEl.textContent = `✅ ${data.next_rank} уже выполнен!`;
+                    nextRankEl.className = 'next-rank';
+                } else {
+                    nextRankEl.textContent = `✅ Точно в норматив ${data.next_rank}!`;
+                    nextRankEl.className = 'next-rank';
+                }
+            } else if (data.rank === 'Без разряда' && data.next_rank) {
+                // Показываем, сколько до первого разряда
+                if (data.seconds_to_next > 0) {
+                    nextRankEl.textContent = `⬆️ До ${data.next_rank}: ${data.seconds_to_next} сек`;
+                    nextRankEl.className = 'next-rank';
+                }
+            } else {
+                // Высший разряд достигнут — нет следующего
+                nextRankEl.textContent = '🏆 Высший разряд достигнут!';
+                nextRankEl.className = 'next-rank unavailable';
+            }
+    
+            // Показываем блок результатов
             resultDiv.classList.add('show');
         }
-
+    
+        // Функция показа ошибки
         function showError(message) {
             errorDiv.textContent = message;
             errorDiv.classList.add('show');

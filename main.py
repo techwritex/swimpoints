@@ -87,49 +87,82 @@ def parse_time_to_seconds(time_str: str) -> float:
         
         return float(time_str)
     except Exception:
-        raise HTTPException(status_code=400, detail="Неверный формат времени. Используйте СС.сс или М:СС.сс")
+        raise HTTPException(status_code=400, detail="Неверный формат времени. Используйте СС.мс или М:СС.мс")
 
-# === Функция определения разряда ===
+# === Функция определения разряда с информацией о следующем ===
 def get_rank(pool: str, event: str, gender: str, swimmer_seconds: float) -> dict:
-    """
-    Определяет спортивный разряд на основании времени пловца
-    """
     if df_ranks.empty:
-        return {"rank": "Нет данных", "rank_order": None, "norm_time": None, "time_to_norm": None}
+        return {
+            "rank": "Нет данных", "rank_order": None, "norm_time": None,
+            "time_to_norm": None, "next_rank": None, "seconds_to_next": None 
+        }
     
     target_pool = pool.upper().strip()
     target_event = " ".join(event.lower().split())
     
-    # Фильтруем нормативы по бассейну и дистанции
     mask = (df_ranks['Pool_Search'] == target_pool) & \
            (df_ranks['Event_Search'] == target_event)
     
     ranks_data = df_ranks[mask]
     
     if ranks_data.empty:
-        return {"rank": "Нет норматива", "rank_order": None, "norm_time": None, "time_to_norm": None}
+        return {
+            "rank": "Нет норматива", "rank_order": None, "norm_time": None,
+            "time_to_norm": None, "next_rank": None, "seconds_to_next": None 
+        }
     
-    # Выбираем колонку времени в зависимости от пола
     time_col = 'Men_Sec' if gender == 'male' else 'Women_Sec'
     
-    # Ищем первый разряд, норматив которого выполнен (время пловца <= нормативу)
-    for rank in RANK_ORDER:
+    achieved_rank = None
+    achieved_index = None
+    achieved_norm = None
+    
+    # Ищем достигнутый разряд
+    for idx, rank in enumerate(RANK_ORDER):
         rank_row = ranks_data[ranks_data['Rank'] == rank]
         if not rank_row.empty:
             norm_time = rank_row[time_col].values[0]
             if norm_time is not None and swimmer_seconds <= norm_time:
-                return {
-                    "rank": rank,
-                    "rank_order": RANK_ORDER.index(rank) + 1,
-                    "norm_time": norm_time,
-                    "time_to_norm": round(norm_time - swimmer_seconds, 2)
-                }
+                achieved_rank = rank
+                achieved_index = idx
+                achieved_norm = norm_time
+                break
+    
+    # Если разряд не достигнут
+    if achieved_rank is None:
+        lowest_rank = RANK_ORDER[-1]
+        lowest_row = ranks_data[ranks_data['Rank'] == lowest_rank]
+        lowest_norm = lowest_row[time_col].values[0] if not lowest_row.empty else None
+        
+        return {
+            "rank": "Без разряда",
+            "rank_order": len(RANK_ORDER) + 1,
+            "norm_time": None,
+            "time_to_norm": round(lowest_norm - swimmer_seconds, 2) if lowest_norm else None,
+            "next_rank": lowest_rank if lowest_norm else None, 
+            "seconds_to_next": round(swimmer_seconds - lowest_norm, 2) if lowest_norm else None 
+        }
+    
+    # === Ищем следующий высший разряд ===
+    next_rank = None
+    seconds_to_next = None
+    
+    if achieved_index > 0:  # Есть разряд выше
+        next_rank_name = RANK_ORDER[achieved_index - 1]
+        next_rank_row = ranks_data[ranks_data['Rank'] == next_rank_name]
+        if not next_rank_row.empty:
+            next_norm = next_rank_row[time_col].values[0]
+            if next_norm is not None:
+                next_rank = next_rank_name
+                seconds_to_next = round(swimmer_seconds - next_norm, 2) 
     
     return {
-        "rank": "Без разряда",
-        "rank_order": len(RANK_ORDER) + 1,
-        "norm_time": None,
-        "time_to_norm": None
+        "rank": achieved_rank,
+        "rank_order": achieved_index + 1,
+        "norm_time": achieved_norm,
+        "time_to_norm": round(achieved_norm - swimmer_seconds, 2),
+        "next_rank": next_rank, 
+        "seconds_to_next": seconds_to_next 
     }
 
 # 4. Эндпоинты API
@@ -223,7 +256,7 @@ def calculate(time: str, event: str, pool: str, gender: Gender):
     return {
         "event": event,
         "pool": target_pool,
-        "gender": gender,
+        "gender": gender.value,
         "input_time": time,
         "seconds": swimmer_seconds,
         "base_time": base_time,
@@ -231,7 +264,9 @@ def calculate(time: str, event: str, pool: str, gender: Gender):
         "rank": rank_info["rank"],
         "rank_order": rank_info["rank_order"],
         "norm_time": rank_info.get("norm_time"),
-        "time_to_norm": rank_info.get("time_to_norm")
+        "time_to_norm": rank_info.get("time_to_norm"),
+        "next_rank": rank_info.get("next_rank"),  
+        "seconds_to_next": rank_info.get("seconds_to_next") 
     }
 
 # @app.get("/")
